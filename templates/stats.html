@@ -31,7 +31,7 @@
     <table>
       <thead><tr><th>Сборщик</th><th>Машин</th><th>КГ</th></tr></thead>
       <tbody>
-      {% for r in day_rows %}<tr><td>{{ r.picker }}</td><td>{{ r.trucks_count }}</td><td>{{ r.total_qty }}</td></tr>{% endfor %}
+      {% for r in day_rows %}<tr><td data-label="Сборщик">{{ r.picker }}</td><td data-label="Машин">{{ r.trucks_count }}</td><td data-label="КГ">{{ r.total_qty }}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -43,7 +43,7 @@
     <table>
       <thead><tr><th>Сборщик</th><th>Машины</th><th>Что делал</th></tr></thead>
       <tbody>
-      {% for r in picker_details %}<tr><td>{{ r.picker }}</td><td>{{ r.trucks or "-" }}</td><td>{{ r.actions or "-" }}</td></tr>{% endfor %}
+      {% for r in picker_details %}<tr><td data-label="Сборщик">{{ r.picker }}</td><td data-label="Машины">{{ r.trucks or "-" }}</td><td data-label="Что делал">{{ r.actions or "-" }}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -55,7 +55,7 @@
     <table>
       <thead><tr><th>Сборщик</th><th>Машин</th><th>КГ</th></tr></thead>
       <tbody>
-      {% for r in period_rows %}<tr><td>{{ r.picker }}</td><td>{{ r.trucks_count }}</td><td>{{ r.total_qty }}</td></tr>{% endfor %}
+      {% for r in period_rows %}<tr><td data-label="Сборщик">{{ r.picker }}</td><td data-label="Машин">{{ r.trucks_count }}</td><td data-label="КГ">{{ r.total_qty }}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -67,7 +67,7 @@
     <table>
       <thead><tr><th>Тип</th><th>Объем</th></tr></thead>
       <tbody>
-      {% for r in types_rows %}<tr><td>{{ r.work_type }}</td><td>{{ r.total_qty }}</td></tr>{% endfor %}
+      {% for r in types_rows %}<tr><td data-label="Тип">{{ r.work_type }}</td><td data-label="Объем">{{ r.total_qty }}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

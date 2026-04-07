@@ -5,6 +5,13 @@
   <p>Фильтруйте по складу, машине и сборщику. Экспортируйте отчет в один клик.</p>
 </section>
 
+<section class="kpis">
+  <div class="kpi">
+    <div class="kpi-label">Записей по фильтру</div>
+    <div class="kpi-value">{{ rows_count }}</div>
+  </div>
+</section>
+
 <section class="card">
   <h3>Фильтры</h3>
   <form method="get" action="/journal" class="grid">
@@ -50,16 +57,19 @@
       <tbody>
       {% for r in rows %}
       <tr>
-        <td>{{ r.work_date }}</td>
-        <td>{{ r.work_time }}</td>
-        <td>{{ r.picker }}</td>
-        <td>{{ r.warehouse }}</td>
-        <td>{{ r.truck_number }}</td>
-        <td>{{ r.work_type }}</td>
-        <td>{{ r.quantity_kg }}</td>
-        <td>{{ r.comment }}</td>
+        <td data-label="Дата">{{ r.work_date }}</td>
+        <td data-label="Время">{{ r.work_time }}</td>
+        <td data-label="Сборщик">{{ r.picker }}</td>
+        <td data-label="Склад">{{ r.warehouse }}</td>
+        <td data-label="Машина">{{ r.truck_number }}</td>
+        <td data-label="Тип">{{ r.work_type }}</td>
+        <td data-label="КГ">{{ r.quantity_kg }}</td>
+        <td data-label="Комментарий">{{ r.comment }}</td>
       </tr>
       {% endfor %}
+      {% if not rows %}
+      <tr><td colspan="8" class="muted">Нет записей по текущим фильтрам.</td></tr>
+      {% endif %}
       </tbody>
     </table>
   </div>

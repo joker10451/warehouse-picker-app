@@ -46,6 +46,10 @@ body {
 .top a.active,
 .top a:hover { background: #fff; color: var(--primary); border-color: #fff; }
 
+.bottom-nav {
+  display: none;
+}
+
 main { padding: 16px; max-width: 1180px; margin: 0 auto; }
 
 .page-head { margin: 4px 0 12px; }
@@ -115,4 +119,63 @@ tbody tr:hover { background: #f8fbff; }
   .page-head h2 { font-size: 22px; }
   .card { padding: 12px; border-radius: 12px; }
   .kpi-value { font-size: 22px; }
+  .top nav { display: none; }
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 25;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    border-top: 1px solid #d8e2ef;
+    backdrop-filter: blur(8px);
+  }
+  .bottom-nav a {
+    text-decoration: none;
+    text-align: center;
+    padding: 10px 6px;
+    color: #28415f;
+    font-weight: 700;
+    border-radius: 10px;
+    background: #eef3f9;
+    font-size: 13px;
+  }
+  .bottom-nav a.active {
+    background: #1f4e78;
+    color: #fff;
+  }
+  main { padding-bottom: 76px; }
+
+  table { min-width: 100%; }
+  .table-wrap table thead {
+    display: none;
+  }
+  .table-wrap table,
+  .table-wrap table tbody,
+  .table-wrap table tr,
+  .table-wrap table td {
+    display: block;
+    width: 100%;
+  }
+  .table-wrap table tr {
+    border-bottom: 1px solid #e5ebf3;
+    padding: 6px 0;
+  }
+  .table-wrap table td {
+    border: 0;
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+  .table-wrap table td::before {
+    content: attr(data-label);
+    display: block;
+    color: #6a778a;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
 }

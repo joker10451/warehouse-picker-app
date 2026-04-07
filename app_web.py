@@ -297,6 +297,7 @@ def journal(
     context = {
         "request": request,
         "rows": rows,
+        "rows_count": len(rows),
         "pickers": get_pickers(),
         "work_types": get_work_types(),
         "warehouses": WAREHOUSES,
@@ -422,7 +423,7 @@ def stats(
 @app.get("/live", response_class=HTMLResponse)
 def live(request: Request, day: str = Query(default_factory=lambda: date.today().isoformat())) -> HTMLResponse:
     data = live_dashboard(day)
-    context = {"request": request, "day": day, **data}
+    context = {"request": request, "day": day, "updated_at": datetime.now().strftime("%H:%M"), **data}
     return templates.TemplateResponse(request=request, name="live.html", context=context)
 
 

@@ -2,7 +2,7 @@
 {% block content %}
 <section class="page-head">
   <h2>Дашборд сейчас</h2>
-  <p>Контроль по текущему дню: машины в работе, закрытые и свободные сборщики.</p>
+  <p>Контроль по текущему дню: машины в работе, закрытые и свободные сборщики. Обновлено в {{ updated_at }}.</p>
 </section>
 
 <section class="card">
@@ -48,11 +48,11 @@
       <tbody>
       {% for r in active_trucks %}
       <tr>
-        <td>{{ r.truck_number }}</td>
-        <td>{{ r.warehouse }}</td>
-        <td>{{ r.picker }}</td>
-        <td>{{ r.work_type }}</td>
-        <td>{{ r.work_time }}</td>
+        <td data-label="Машина">{{ r.truck_number }}</td>
+        <td data-label="Склад">{{ r.warehouse }}</td>
+        <td data-label="Сборщик">{{ r.picker }}</td>
+        <td data-label="Последнее действие">{{ r.work_type }}</td>
+        <td data-label="Время">{{ r.work_time }}</td>
       </tr>
       {% endfor %}
       </tbody>
@@ -68,11 +68,11 @@
       <tbody>
       {% for r in closed_trucks %}
       <tr>
-        <td>{{ r.truck_number }}</td>
-        <td>{{ r.warehouse }}</td>
-        <td>{{ r.picker }}</td>
-        <td>{{ r.work_type }}</td>
-        <td>{{ r.work_time }}</td>
+        <td data-label="Машина">{{ r.truck_number }}</td>
+        <td data-label="Склад">{{ r.warehouse }}</td>
+        <td data-label="Сборщик">{{ r.picker }}</td>
+        <td data-label="Последнее действие">{{ r.work_type }}</td>
+        <td data-label="Время">{{ r.work_time }}</td>
       </tr>
       {% endfor %}
       </tbody>
