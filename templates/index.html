@@ -1,7 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="page-head">
   <h2>Ввод данных</h2>
+  <p>Форма оптимизирована под работу со смартфона и быстрый ввод сменных операций.</p>
+</section>
+
+<section class="kpis">
+  <div class="kpi">
+    <div class="kpi-label">Старт смены</div>
+    <div class="kpi-value">20:00</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Складов в работе</div>
+    <div class="kpi-value">5</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Шагов для записи</div>
+    <div class="kpi-value">1</div>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Новая операция</h3>
   <form method="post" action="/add-log" class="grid">
     <label>Дата<input type="date" name="work_date" value="{{ today }}" required></label>
     <label>Время<input type="time" name="work_time" value="{{ now_time }}" required></label>
@@ -26,8 +46,9 @@
     </label>
     <label>Количество (кг)<input type="number" min="1" name="quantity_kg" value="1" required></label>
     <label class="full">Комментарий<input type="text" name="comment"></label>
-    <button type="submit">Сохранить</button>
+    <button type="submit">Сохранить запись</button>
   </form>
+  <p class="muted">Совет: сначала выберите склад и машину, затем добавляйте операции подряд.</p>
 </section>
 
 <section class="card">

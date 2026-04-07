@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="page-head">
   <h2>Журнал</h2>
+  <p>Фильтруйте по складу, машине и сборщику. Экспортируйте отчет в один клик.</p>
+</section>
+
+<section class="card">
+  <h3>Фильтры</h3>
   <form method="get" action="/journal" class="grid">
     <label>Дата<input type="date" name="work_date" value="{{ filters.work_date }}"></label>
     <label>Сборщик
@@ -30,10 +35,10 @@
     </label>
     <label>Машина<input type="text" name="truck_number" value="{{ filters.truck_number }}"></label>
     <label>Заказ<input type="text" name="order_query" value="{{ filters.order_query }}"></label>
-    <button type="submit">Применить</button>
+    <button type="submit">Применить фильтры</button>
   </form>
   <div class="row">
-    <a class="btn" href="/export/journal.xlsx?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}&order_query={{ filters.order_query }}">Excel</a>
+    <a class="btn secondary" href="/export/journal.xlsx?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}&order_query={{ filters.order_query }}">Excel</a>
     <a class="btn" href="/export/journal.pdf?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}&order_query={{ filters.order_query }}">PDF / Печать</a>
   </div>
 </section>

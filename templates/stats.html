@@ -1,14 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="page-head">
   <h2>Статистика</h2>
+  <p>Ежедневные и периодные итоги по сборщикам, типам работ и машинам.</p>
+</section>
+
+<section class="kpis">
+  <div class="kpi">
+    <div class="kpi-label">Общий объем за период</div>
+    <div class="kpi-value">{{ total }}</div>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Параметры отчета</h3>
   <form method="get" action="/stats" class="grid">
     <label>За день<input type="date" name="day" value="{{ day }}" required></label>
     <label>Период с<input type="date" name="date_from" value="{{ date_from }}" required></label>
     <label>Период по<input type="date" name="date_to" value="{{ date_to }}" required></label>
-    <button type="submit">Обновить</button>
+    <button type="submit">Обновить отчет</button>
   </form>
-  <p><strong>Общий объем:</strong> {{ total }}</p>
   <div class="row">
     <a class="btn" href="/export/stats.pdf?date_from={{ date_from }}&date_to={{ date_to }}">PDF / Печать</a>
   </div>

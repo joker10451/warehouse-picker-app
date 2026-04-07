@@ -10,17 +10,29 @@
 </head>
 <body>
   <header class="top">
-    <h1>Складской учет</h1>
+    <div class="title-row">
+      <div>
+        <h1>Складской учет</h1>
+        <p class="subtitle">Быстрый ввод, журнал и статистика по смене</p>
+      </div>
+    </div>
     <nav>
-      <a href="/">Ввод</a>
-      <a href="/journal">Журнал</a>
-      <a href="/stats">Статистика</a>
+      <a href="/" data-nav="/">Ввод</a>
+      <a href="/journal" data-nav="/journal">Журнал</a>
+      <a href="/stats" data-nav="/stats">Статистика</a>
     </nav>
   </header>
   <main>
     {% block content %}{% endblock %}
   </main>
   <script>
+    const path = window.location.pathname;
+    document.querySelectorAll("[data-nav]").forEach((a) => {
+      const p = a.getAttribute("data-nav");
+      if ((p === "/" && path === "/") || (p !== "/" && path.startsWith(p))) {
+        a.classList.add("active");
+      }
+    });
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/static/sw.js");
     }
