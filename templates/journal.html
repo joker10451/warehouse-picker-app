@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Журнал</h2>
+  <form method="get" action="/journal" class="grid">
+    <label>Дата<input type="date" name="work_date" value="{{ filters.work_date }}"></label>
+    <label>Сборщик
+      <select name="picker">
+        <option value="">Все</option>
+        {% for p in pickers %}
+        <option value="{{ p }}" {% if filters.picker == p %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Тип
+      <select name="work_type">
+        <option value="">Все</option>
+        {% for t in work_types %}
+        <option value="{{ t }}" {% if filters.work_type == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Склад
+      <select name="warehouse">
+        <option value="">Все</option>
+        {% for w in warehouses %}
+        <option value="{{ w }}" {% if filters.warehouse == w %}selected{% endif %}>{{ w }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Машина<input type="text" name="truck_number" value="{{ filters.truck_number }}"></label>
+    <label>Заказ<input type="text" name="order_query" value="{{ filters.order_query }}"></label>
+    <button type="submit">Применить</button>
+  </form>
+  <div class="row">
+    <a class="btn" href="/export/journal.xlsx?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}&order_query={{ filters.order_query }}">Excel</a>
+    <a class="btn" href="/export/journal.pdf?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}&order_query={{ filters.order_query }}">PDF / Печать</a>
+  </div>
+</section>
+<section class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+      <tr><th>Дата</th><th>Время</th><th>Сборщик</th><th>Склад</th><th>Машина</th><th>Заказ</th><th>Тип</th><th>КГ</th><th>Комментарий</th></tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.work_date }}</td>
+        <td>{{ r.work_time }}</td>
+        <td>{{ r.picker }}</td>
+        <td>{{ r.warehouse }}</td>
+        <td>{{ r.truck_number }}</td>
+        <td>{{ r.order_number }}</td>
+        <td>{{ r.work_type }}</td>
+        <td>{{ r.quantity_kg }}</td>
+        <td>{{ r.comment }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

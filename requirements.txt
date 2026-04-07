@@ -1,0 +1,8 @@
+flet
+openpyxl
+reportlab
+pyinstaller
+fastapi
+uvicorn
+jinja2
+python-multipart

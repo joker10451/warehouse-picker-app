@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Ввод данных</h2>
+  <form method="post" action="/add-log" class="grid">
+    <label>Дата<input type="date" name="work_date" value="{{ today }}" required></label>
+    <label>Время<input type="time" name="work_time" value="{{ now_time }}" required></label>
+    <label>Сборщик
+      <select name="picker" required>
+        <option value="">Выберите</option>
+        {% for p in pickers %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Склад
+      <select name="warehouse" required>
+        {% for w in warehouses %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Номер машины<input type="text" name="truck_number" required></label>
+    <label>Номер заказа<input type="text" name="order_number" required></label>
+    <label>Тип работы
+      <select name="work_type" required>
+        <option value="">Выберите</option>
+        {% for t in work_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Количество (кг)<input type="number" min="1" name="quantity_kg" value="1" required></label>
+    <label class="full">Комментарий<input type="text" name="comment"></label>
+    <button type="submit">Сохранить</button>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Справочник сборщиков</h3>
+  <form method="post" action="/add-picker" class="row">
+    <input type="text" name="name" placeholder="Новый сборщик" required>
+    <button type="submit">Добавить</button>
+  </form>
+</section>
+{% endblock %}
