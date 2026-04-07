@@ -34,19 +34,18 @@
       </select>
     </label>
     <label>Машина<input type="text" name="truck_number" value="{{ filters.truck_number }}"></label>
-    <label>Заказ<input type="text" name="order_query" value="{{ filters.order_query }}"></label>
     <button type="submit">Применить фильтры</button>
   </form>
   <div class="row">
-    <a class="btn secondary" href="/export/journal.xlsx?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}&order_query={{ filters.order_query }}">Excel</a>
-    <a class="btn" href="/export/journal.pdf?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}&order_query={{ filters.order_query }}">PDF / Печать</a>
+    <a class="btn secondary" href="/export/journal.xlsx?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}">Excel</a>
+    <a class="btn" href="/export/journal.pdf?work_date={{ filters.work_date }}&picker={{ filters.picker }}&work_type={{ filters.work_type }}&warehouse={{ filters.warehouse }}&truck_number={{ filters.truck_number }}">PDF / Печать</a>
   </div>
 </section>
 <section class="card">
   <div class="table-wrap">
     <table>
       <thead>
-      <tr><th>Дата</th><th>Время</th><th>Сборщик</th><th>Склад</th><th>Машина</th><th>Заказ</th><th>Тип</th><th>КГ</th><th>Комментарий</th></tr>
+      <tr><th>Дата</th><th>Время</th><th>Сборщик</th><th>Склад</th><th>Машина</th><th>Тип</th><th>КГ</th><th>Комментарий</th></tr>
       </thead>
       <tbody>
       {% for r in rows %}
@@ -56,7 +55,6 @@
         <td>{{ r.picker }}</td>
         <td>{{ r.warehouse }}</td>
         <td>{{ r.truck_number }}</td>
-        <td>{{ r.order_number }}</td>
         <td>{{ r.work_type }}</td>
         <td>{{ r.quantity_kg }}</td>
         <td>{{ r.comment }}</td>

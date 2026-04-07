@@ -29,9 +29,9 @@
   <h3>За день</h3>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Сборщик</th><th>Заказов</th><th>Объем</th></tr></thead>
+      <thead><tr><th>Сборщик</th><th>Машин</th><th>КГ</th></tr></thead>
       <tbody>
-      {% for r in day_rows %}<tr><td>{{ r.picker }}</td><td>{{ r.orders_count }}</td><td>{{ r.total_qty }}</td></tr>{% endfor %}
+      {% for r in day_rows %}<tr><td>{{ r.picker }}</td><td>{{ r.trucks_count }}</td><td>{{ r.total_qty }}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -53,9 +53,9 @@
   <h3>За период</h3>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Сборщик</th><th>Заказов</th><th>Объем</th></tr></thead>
+      <thead><tr><th>Сборщик</th><th>Машин</th><th>КГ</th></tr></thead>
       <tbody>
-      {% for r in period_rows %}<tr><td>{{ r.picker }}</td><td>{{ r.orders_count }}</td><td>{{ r.total_qty }}</td></tr>{% endfor %}
+      {% for r in period_rows %}<tr><td>{{ r.picker }}</td><td>{{ r.trucks_count }}</td><td>{{ r.total_qty }}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

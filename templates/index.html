@@ -37,13 +37,7 @@
       </select>
     </label>
     <label>Номер машины<input type="text" name="truck_number" required></label>
-    <label>Номер заказа<input type="text" name="order_number" required></label>
-    <label>Тип работы
-      <select name="work_type" required>
-        <option value="">Выберите</option>
-        {% for t in work_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
-      </select>
-    </label>
+    <label>Тип работы (свободный ввод)<input type="text" name="work_type" placeholder="Например: сборка паллеты" required></label>
     <label>Количество (кг)<input type="number" min="1" name="quantity_kg" value="1" required></label>
     <label class="full">Комментарий<input type="text" name="comment"></label>
     <button type="submit">Сохранить запись</button>
