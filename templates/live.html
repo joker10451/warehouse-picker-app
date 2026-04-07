@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <h2>Дашборд сейчас</h2>
+  <p>Контроль по текущему дню: машины в работе, закрытые и свободные сборщики.</p>
+</section>
+
+<section class="card">
+  <form method="get" action="/live" class="grid">
+    <label>Дата<input type="date" name="day" value="{{ day }}" required></label>
+    <button type="submit">Обновить дашборд</button>
+  </form>
+</section>
+
+<section class="kpis">
+  <div class="kpi">
+    <div class="kpi-label">Машин в работе</div>
+    <div class="kpi-value">{{ busy_count }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Машин закрыто</div>
+    <div class="kpi-value">{{ closed_count }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Свободных сборщиков</div>
+    <div class="kpi-value">{{ free_count }}</div>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Машины в работе</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Машина</th><th>Склад</th><th>Сборщик</th><th>Последнее действие</th><th>Время</th></tr></thead>
+      <tbody>
+      {% for r in active_trucks %}
+      <tr>
+        <td>{{ r.truck_number }}</td>
+        <td>{{ r.warehouse }}</td>
+        <td>{{ r.picker }}</td>
+        <td>{{ r.work_type }}</td>
+        <td>{{ r.work_time }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Машины закрыты</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Машина</th><th>Склад</th><th>Сборщик</th><th>Последнее действие</th><th>Время</th></tr></thead>
+      <tbody>
+      {% for r in closed_trucks %}
+      <tr>
+        <td>{{ r.truck_number }}</td>
+        <td>{{ r.warehouse }}</td>
+        <td>{{ r.picker }}</td>
+        <td>{{ r.work_type }}</td>
+        <td>{{ r.work_time }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Свободные сборщики</h3>
+  <div class="row">
+    {% for p in free_pickers %}
+      <span class="btn ghost">{{ p }}</span>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -326,6 +326,51 @@ def stats_for(day: str, date_from: str, date_to: str) -> dict:
     }
 
 
+def live_dashboard(day: str) -> dict:
+    conn = db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        WITH latest_per_truck AS (
+            SELECT
+                truck_number,
+                picker,
+                warehouse,
+                work_type,
+                work_time,
+                ROW_NUMBER() OVER (
+                    PARTITION BY truck_number
+                    ORDER BY work_time DESC, id DESC
+                ) AS rn
+            FROM work_logs
+            WHERE work_date = ? AND TRIM(truck_number) <> ''
+        )
+        SELECT truck_number, picker, warehouse, work_type, work_time
+        FROM latest_per_truck
+        WHERE rn = 1
+        ORDER BY work_time DESC, truck_number
+        """,
+        (day,),
+    )
+    latest_rows = cur.fetchall()
+
+    active = [r for r in latest_rows if "закры" not in (r["work_type"] or "").lower()]
+    closed = [r for r in latest_rows if "закры" in (r["work_type"] or "").lower()]
+    busy_pickers = {r["picker"] for r in active if (r["picker"] or "").strip()}
+    all_pickers = set(get_pickers())
+    free_pickers = sorted(all_pickers - busy_pickers)
+
+    conn.close()
+    return {
+        "active_trucks": active,
+        "closed_trucks": closed,
+        "free_pickers": free_pickers,
+        "busy_count": len(active),
+        "closed_count": len(closed),
+        "free_count": len(free_pickers),
+    }
+
+
 @app.get("/stats", response_class=HTMLResponse)
 def stats(
     request: Request,
@@ -336,6 +381,13 @@ def stats(
     data = stats_for(day, date_from, date_to)
     context = {"request": request, "day": day, "date_from": date_from, "date_to": date_to, **data}
     return templates.TemplateResponse(request=request, name="stats.html", context=context)
+
+
+@app.get("/live", response_class=HTMLResponse)
+def live(request: Request, day: str = Query(default_factory=lambda: date.today().isoformat())) -> HTMLResponse:
+    data = live_dashboard(day)
+    context = {"request": request, "day": day, **data}
+    return templates.TemplateResponse(request=request, name="live.html", context=context)
 
 
 @app.get("/export/journal.xlsx")
