@@ -123,9 +123,16 @@ def init_db() -> None:
             """
         )
     run_sql(cur, "SELECT COUNT(*) AS cnt FROM pickers")
-    if cur.fetchone()["cnt"] == 0:
-        for name in ["Иванов", "Петров", "Сидоров", "Смирнов", "Кузнецов"]:
-            run_sql(cur, "INSERT INTO pickers(name) VALUES(?)", (name,))
+    pickers_count = int(cur.fetchone()["cnt"])
+    if pickers_count == 0:
+        # Seed only for a truly empty fresh install.
+        run_sql(cur, "SELECT COUNT(*) AS cnt FROM work_logs")
+        logs_count = int(cur.fetchone()["cnt"])
+        run_sql(cur, "SELECT COUNT(*) AS cnt FROM shift_attendance")
+        attendance_count = int(cur.fetchone()["cnt"])
+        if logs_count == 0 and attendance_count == 0:
+            for name in ["Иванов", "Петров", "Сидоров", "Смирнов", "Кузнецов"]:
+                run_sql(cur, "INSERT INTO pickers(name) VALUES(?)", (name,))
 
     if not USE_POSTGRES:
         # Migrations from older sqlite schema.
