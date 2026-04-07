@@ -200,7 +200,10 @@ def get_pickers(include_archived: bool = False) -> list[str]:
     if include_archived:
         run_sql(cur, "SELECT name FROM pickers ORDER BY name")
     else:
-        run_sql(cur, "SELECT name FROM pickers WHERE COALESCE(is_active, 1) = 1 ORDER BY name")
+        if USE_POSTGRES:
+            run_sql(cur, "SELECT name FROM pickers WHERE COALESCE(is_active, TRUE) = TRUE ORDER BY name")
+        else:
+            run_sql(cur, "SELECT name FROM pickers WHERE COALESCE(is_active, 1) = 1 ORDER BY name")
     rows = [r["name"] for r in cur.fetchall()]
     conn.close()
     return rows
@@ -209,7 +212,10 @@ def get_pickers(include_archived: bool = False) -> list[str]:
 def get_picker_rows() -> list[dict]:
     conn = db()
     cur = conn.cursor()
-    run_sql(cur, "SELECT name, COALESCE(is_active, 1) AS is_active, archived_at FROM pickers ORDER BY name")
+    if USE_POSTGRES:
+        run_sql(cur, "SELECT name, COALESCE(is_active, TRUE) AS is_active, archived_at FROM pickers ORDER BY name")
+    else:
+        run_sql(cur, "SELECT name, COALESCE(is_active, 1) AS is_active, archived_at FROM pickers ORDER BY name")
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
