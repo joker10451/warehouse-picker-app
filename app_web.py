@@ -80,7 +80,9 @@ def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS pickers (
                 id BIGSERIAL PRIMARY KEY,
-                name TEXT UNIQUE NOT NULL
+                name TEXT UNIQUE NOT NULL,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                archived_at TEXT
             );
             """
         )
@@ -94,6 +96,24 @@ def init_db() -> None:
             );
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS shift_assignments (
+                id BIGSERIAL PRIMARY KEY,
+                shift_date TEXT NOT NULL,
+                truck_number TEXT NOT NULL,
+                picker TEXT NOT NULL,
+                warehouse TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'assigned',
+                note TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(shift_date, truck_number)
+            );
+            """
+        )
+        cur.execute("ALTER TABLE pickers ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")
+        cur.execute("ALTER TABLE pickers ADD COLUMN IF NOT EXISTS archived_at TEXT")
     else:
         cur.executescript(
             """
@@ -112,13 +132,27 @@ def init_db() -> None:
             );
             CREATE TABLE IF NOT EXISTS pickers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL
+                name TEXT UNIQUE NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                archived_at TEXT
             );
             CREATE TABLE IF NOT EXISTS shift_attendance (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 shift_date TEXT NOT NULL,
                 picker TEXT NOT NULL,
                 UNIQUE(shift_date, picker)
+            );
+            CREATE TABLE IF NOT EXISTS shift_assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                shift_date TEXT NOT NULL,
+                truck_number TEXT NOT NULL,
+                picker TEXT NOT NULL,
+                warehouse TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'assigned',
+                note TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(shift_date, truck_number)
             );
             """
         )
@@ -149,16 +183,34 @@ def init_db() -> None:
             run_sql(cur, "UPDATE work_logs SET quantity_kg = COALESCE(quantity, 1)")
         elif "quantity_kg" not in columns:
             run_sql(cur, "ALTER TABLE work_logs ADD COLUMN quantity_kg INTEGER NOT NULL DEFAULT 1")
+        run_sql(cur, "PRAGMA table_info(pickers)")
+        picker_cols = {r["name"] for r in cur.fetchall()}
+        if "is_active" not in picker_cols:
+            run_sql(cur, "ALTER TABLE pickers ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+        if "archived_at" not in picker_cols:
+            run_sql(cur, "ALTER TABLE pickers ADD COLUMN archived_at TEXT")
 
     conn.commit()
     conn.close()
 
 
-def get_pickers() -> list[str]:
+def get_pickers(include_archived: bool = False) -> list[str]:
     conn = db()
     cur = conn.cursor()
-    run_sql(cur, "SELECT name FROM pickers ORDER BY name")
+    if include_archived:
+        run_sql(cur, "SELECT name FROM pickers ORDER BY name")
+    else:
+        run_sql(cur, "SELECT name FROM pickers WHERE COALESCE(is_active, 1) = 1 ORDER BY name")
     rows = [r["name"] for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_picker_rows() -> list[dict]:
+    conn = db()
+    cur = conn.cursor()
+    run_sql(cur, "SELECT name, COALESCE(is_active, 1) AS is_active, archived_at FROM pickers ORDER BY name")
+    rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
 
@@ -208,23 +260,136 @@ def rename_picker(old_name: str, new_name: str) -> None:
     if int(cur.fetchone()["cnt"]) > 0:
         conn.close()
         return
-    run_sql(cur, "UPDATE pickers SET name = ? WHERE name = ?", (new_name, old_name))
+    run_sql(cur, "UPDATE pickers SET name = ?, is_active = 1, archived_at = NULL WHERE name = ?", (new_name, old_name))
     run_sql(cur, "UPDATE work_logs SET picker = ? WHERE picker = ?", (new_name, old_name))
     run_sql(cur, "UPDATE shift_attendance SET picker = ? WHERE picker = ?", (new_name, old_name))
+    run_sql(cur, "UPDATE shift_assignments SET picker = ? WHERE picker = ?", (new_name, old_name))
     conn.commit()
     conn.close()
 
 
-def delete_picker(name: str) -> None:
+def archive_picker(name: str) -> None:
     name = name.strip()
     if not name:
         return
     conn = db()
     cur = conn.cursor()
-    run_sql(cur, "DELETE FROM pickers WHERE name = ?", (name,))
+    run_sql(cur, "UPDATE pickers SET is_active = 0, archived_at = ? WHERE name = ?", (datetime.now().isoformat(timespec='seconds'), name))
     run_sql(cur, "DELETE FROM shift_attendance WHERE picker = ?", (name,))
     conn.commit()
     conn.close()
+
+
+def restore_picker(name: str) -> None:
+    name = name.strip()
+    if not name:
+        return
+    conn = db()
+    cur = conn.cursor()
+    run_sql(cur, "UPDATE pickers SET is_active = 1, archived_at = NULL WHERE name = ?", (name,))
+    conn.commit()
+    conn.close()
+
+
+def recent_truck_numbers(limit: int = 80) -> list[str]:
+    conn = db()
+    cur = conn.cursor()
+    run_sql(
+        cur,
+        """
+        SELECT truck_number
+        FROM work_logs
+        WHERE TRIM(truck_number) <> ''
+        GROUP BY truck_number
+        ORDER BY MAX(created_at) DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    rows = [r["truck_number"] for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def upsert_assignment(shift_date: str, truck_number: str, picker: str, warehouse: str, note: str = "") -> None:
+    now = datetime.now().isoformat(timespec="seconds")
+    conn = db()
+    cur = conn.cursor()
+    if USE_POSTGRES:
+        cur.execute(
+            """
+            INSERT INTO shift_assignments(shift_date, truck_number, picker, warehouse, status, note, created_at, updated_at)
+            VALUES(%s, %s, %s, %s, 'assigned', %s, %s, %s)
+            ON CONFLICT (shift_date, truck_number)
+            DO UPDATE SET picker = EXCLUDED.picker, warehouse = EXCLUDED.warehouse, note = EXCLUDED.note, updated_at = EXCLUDED.updated_at
+            """,
+            (shift_date, truck_number.strip(), picker, warehouse, note.strip(), now, now),
+        )
+    else:
+        run_sql(
+            cur,
+            """
+            INSERT OR REPLACE INTO shift_assignments(id, shift_date, truck_number, picker, warehouse, status, note, created_at, updated_at)
+            VALUES(
+              (SELECT id FROM shift_assignments WHERE shift_date = ? AND truck_number = ?),
+              ?, ?, ?, ?, 'assigned', ?, COALESCE((SELECT created_at FROM shift_assignments WHERE shift_date = ? AND truck_number = ?), ?), ?
+            )
+            """,
+            (shift_date, truck_number.strip(), shift_date, truck_number.strip(), picker, warehouse, note.strip(), shift_date, truck_number.strip(), now, now),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_assignments(shift_date: str) -> list[dict]:
+    conn = db()
+    cur = conn.cursor()
+    run_sql(
+        cur,
+        """
+        SELECT shift_date, truck_number, picker, warehouse, status, note, updated_at
+        FROM shift_assignments
+        WHERE shift_date = ?
+        ORDER BY warehouse, truck_number
+        """,
+        (shift_date,),
+    )
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def update_assignment_status(shift_date: str, truck_number: str, status: str) -> None:
+    conn = db()
+    cur = conn.cursor()
+    run_sql(
+        cur,
+        "UPDATE shift_assignments SET status = ?, updated_at = ? WHERE shift_date = ? AND truck_number = ?",
+        (status, datetime.now().isoformat(timespec="seconds"), shift_date, truck_number.strip()),
+    )
+    conn.commit()
+    conn.close()
+
+
+def recent_activity(minutes: int = 60, limit: int = 80) -> list[dict]:
+    since = datetime.now().timestamp() - (minutes * 60)
+    since_iso = datetime.fromtimestamp(since).isoformat(timespec="seconds")
+    conn = db()
+    cur = conn.cursor()
+    run_sql(
+        cur,
+        """
+        SELECT work_date, work_time, picker, warehouse, truck_number, work_type, quantity_kg, comment, created_at
+        FROM work_logs
+        WHERE created_at >= ?
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (since_iso, limit),
+    )
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
 
 
 def register_font() -> str:
@@ -318,13 +483,17 @@ def startup() -> None:
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request) -> HTMLResponse:
     today = date.today().isoformat()
+    dup = request.query_params.get("dup", "")
     context = {
         "request": request,
         "today": today,
         "now_time": datetime.now().strftime("%H:%M"),
         "pickers": get_pickers(),
+        "picker_rows": get_picker_rows(),
         "warehouses": WAREHOUSES,
         "shift_pickers_today": get_shift_pickers(today),
+        "recent_trucks": recent_truck_numbers(),
+        "dup": dup == "1",
     }
     return templates.TemplateResponse(request=request, name="index.html", context=context)
 
@@ -356,7 +525,13 @@ def picker_rename(old_name: str = Form(...), new_name: str = Form(...)) -> Redir
 
 @app.post("/picker/delete")
 def picker_delete(name: str = Form(...)) -> RedirectResponse:
-    delete_picker(name)
+    archive_picker(name)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/picker/restore")
+def picker_restore(name: str = Form(...)) -> RedirectResponse:
+    restore_picker(name)
     return RedirectResponse("/", status_code=303)
 
 
@@ -373,6 +548,29 @@ def add_log(
 ) -> RedirectResponse:
     conn = db()
     cur = conn.cursor()
+    # Duplicate protection for 2-minute window.
+    run_sql(
+        cur,
+        """
+        SELECT created_at
+        FROM work_logs
+        WHERE work_date = ? AND picker = ? AND truck_number = ? AND work_type = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (work_date, picker, truck_number.strip(), work_type.strip()),
+    )
+    last = cur.fetchone()
+    if last:
+        try:
+            last_ts = datetime.fromisoformat(last["created_at"]).timestamp()
+            now_ts = datetime.now().timestamp()
+            if now_ts - last_ts <= 120:
+                conn.close()
+                return RedirectResponse("/?dup=1", status_code=303)
+        except Exception:
+            pass
+
     run_sql(
         cur,
         """
@@ -391,6 +589,12 @@ def add_log(
             comment.strip(),
             datetime.now().isoformat(timespec="seconds"),
         ),
+    )
+    # If truck was assigned, mark it as started automatically.
+    run_sql(
+        cur,
+        "UPDATE shift_assignments SET status = 'started', updated_at = ? WHERE shift_date = ? AND truck_number = ? AND status = 'assigned'",
+        (datetime.now().isoformat(timespec="seconds"), work_date, truck_number.strip()),
     )
     conn.commit()
     conn.close()
@@ -518,6 +722,10 @@ def live_dashboard(day: str) -> dict:
     on_shift = get_shift_pickers(day)
     source = set(on_shift) if on_shift else set(get_pickers())
     free_pickers = sorted(source - busy_pickers)
+    assignments = get_assignments(day)
+    assigned_count = sum(1 for a in assignments if a["status"] == "assigned")
+    started_count = sum(1 for a in assignments if a["status"] == "started")
+    closed_assign_count = sum(1 for a in assignments if a["status"] == "closed")
 
     conn.close()
     return {
@@ -529,6 +737,11 @@ def live_dashboard(day: str) -> dict:
         "free_count": len(free_pickers),
         "on_shift_count": len(source),
         "on_shift_pickers": sorted(source),
+        "assignments": assignments,
+        "assigned_count": assigned_count,
+        "started_count": started_count,
+        "closed_assign_count": closed_assign_count,
+        "activity_feed": recent_activity(60, 60),
     }
 
 
@@ -547,8 +760,68 @@ def stats(
 @app.get("/live", response_class=HTMLResponse)
 def live(request: Request, day: str = Query(default_factory=lambda: date.today().isoformat())) -> HTMLResponse:
     data = live_dashboard(day)
-    context = {"request": request, "day": day, "updated_at": datetime.now().strftime("%H:%M"), **data}
+    context = {
+        "request": request,
+        "day": day,
+        "updated_at": datetime.now().strftime("%H:%M"),
+        "pickers": get_pickers(),
+        "warehouses": WAREHOUSES,
+        **data,
+    }
     return templates.TemplateResponse(request=request, name="live.html", context=context)
+
+
+@app.post("/assignment/add")
+def assignment_add(
+    shift_date: str = Form(...),
+    truck_number: str = Form(...),
+    picker: str = Form(...),
+    warehouse: str = Form(...),
+    note: str = Form(""),
+) -> RedirectResponse:
+    if truck_number.strip() and picker.strip():
+        upsert_assignment(shift_date, truck_number, picker, warehouse, note)
+    return RedirectResponse(f"/live?day={shift_date}", status_code=303)
+
+
+@app.post("/assignment/close")
+def assignment_close(
+    shift_date: str = Form(...),
+    truck_number: str = Form(...),
+    picker: str = Form(...),
+    warehouse: str = Form(...),
+) -> RedirectResponse:
+    now = datetime.now()
+    work_time = now.strftime("%H:%M")
+    conn = db()
+    cur = conn.cursor()
+    run_sql(
+        cur,
+        """
+        INSERT INTO work_logs(work_date, work_time, picker, warehouse, truck_number, order_number, work_type, quantity_kg, comment, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            shift_date,
+            work_time,
+            picker,
+            warehouse,
+            truck_number.strip(),
+            "",
+            "закрыта",
+            1,
+            "Закрыто с дашборда",
+            now.isoformat(timespec="seconds"),
+        ),
+    )
+    run_sql(
+        cur,
+        "UPDATE shift_assignments SET status = 'closed', updated_at = ? WHERE shift_date = ? AND truck_number = ?",
+        (now.isoformat(timespec="seconds"), shift_date, truck_number.strip()),
+    )
+    conn.commit()
+    conn.close()
+    return RedirectResponse(f"/live?day={shift_date}", status_code=303)
 
 
 @app.get("/export/journal.xlsx")

@@ -29,6 +29,64 @@
     <div class="kpi-label">Свободных сборщиков</div>
     <div class="kpi-value">{{ free_count }}</div>
   </div>
+  <div class="kpi">
+    <div class="kpi-label">Назначено</div>
+    <div class="kpi-value">{{ assigned_count }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Назначений в работе</div>
+    <div class="kpi-value">{{ started_count }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Назначений закрыто</div>
+    <div class="kpi-value">{{ closed_assign_count }}</div>
+  </div>
+</section>
+
+<section class="card">
+  <h3>План на смену (назначения)</h3>
+  <form method="post" action="/assignment/add" class="grid">
+    <input type="hidden" name="shift_date" value="{{ day }}">
+    <label>Машина<input type="text" name="truck_number" required></label>
+    <label>Склад
+      <select name="warehouse" required>
+        {% for w in warehouses %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Сборщик
+      <select name="picker" required>
+        {% for p in pickers %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Комментарий<input type="text" name="note"></label>
+    <button type="submit">Назначить</button>
+  </form>
+  <div class="table-wrap" style="margin-top:10px;">
+    <table>
+      <thead><tr><th>Машина</th><th>Склад</th><th>Сборщик</th><th>Статус</th><th>Действие</th></tr></thead>
+      <tbody>
+      {% for a in assignments %}
+      <tr>
+        <td data-label="Машина">{{ a.truck_number }}</td>
+        <td data-label="Склад">{{ a.warehouse }}</td>
+        <td data-label="Сборщик">{{ a.picker }}</td>
+        <td data-label="Статус">{{ a.status }}</td>
+        <td data-label="Действие">
+          {% if a.status != "closed" %}
+          <form method="post" action="/assignment/close">
+            <input type="hidden" name="shift_date" value="{{ day }}">
+            <input type="hidden" name="truck_number" value="{{ a.truck_number }}">
+            <input type="hidden" name="picker" value="{{ a.picker }}">
+            <input type="hidden" name="warehouse" value="{{ a.warehouse }}">
+            <button type="submit" class="secondary">Закрыть машину</button>
+          </form>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="card">
@@ -86,6 +144,27 @@
     {% for p in free_pickers %}
       <span class="btn ghost">{{ p }}</span>
     {% endfor %}
+  </div>
+</section>
+
+<section class="card">
+  <h3>Лента активности (60 минут)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Время</th><th>Сборщик</th><th>Склад</th><th>Машина</th><th>Тип</th><th>КГ</th></tr></thead>
+      <tbody>
+      {% for r in activity_feed %}
+      <tr>
+        <td data-label="Время">{{ r.created_at }}</td>
+        <td data-label="Сборщик">{{ r.picker }}</td>
+        <td data-label="Склад">{{ r.warehouse }}</td>
+        <td data-label="Машина">{{ r.truck_number }}</td>
+        <td data-label="Тип">{{ r.work_type }}</td>
+        <td data-label="КГ">{{ r.quantity_kg }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
 {% endblock %}

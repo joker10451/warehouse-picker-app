@@ -5,6 +5,12 @@
   <p>Форма оптимизирована под работу со смартфона и быстрый ввод сменных операций.</p>
 </section>
 
+{% if dup %}
+<section class="card" style="border:1px solid #f59e0b;background:#fff7ed;">
+  <strong>Внимание:</strong> похожая запись уже была за последние 2 минуты. Проверьте дубли.
+</section>
+{% endif %}
+
 <section class="kpis">
   <div class="kpi">
     <div class="kpi-label">Старт смены</div>
@@ -54,7 +60,10 @@
         {% for w in warehouses %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
       </select>
     </label>
-    <label>Номер машины<input type="text" name="truck_number" required></label>
+    <label>Номер машины<input type="text" name="truck_number" list="truckNumbers" required></label>
+    <datalist id="truckNumbers">
+      {% for t in recent_trucks %}<option value="{{ t }}">{% endfor %}
+    </datalist>
     <label>Тип работы (свободный ввод)<input type="text" name="work_type" placeholder="Например: сборка паллеты" required></label>
     <label>Количество (кг)<input type="number" min="1" name="quantity_kg" value="1" required></label>
     <label class="full">Комментарий<input type="text" name="comment"></label>
@@ -71,23 +80,31 @@
   </form>
   <div class="table-wrap" style="margin-top:10px;">
     <table>
-      <thead><tr><th>Сборщик</th><th>Переименовать</th><th>Удалить</th></tr></thead>
+      <thead><tr><th>Сборщик</th><th>Статус</th><th>Переименовать</th><th>Действие</th></tr></thead>
       <tbody>
-      {% for p in pickers %}
+      {% for pr in picker_rows %}
       <tr>
-        <td data-label="Сборщик">{{ p }}</td>
+        <td data-label="Сборщик">{{ pr.name }}</td>
+        <td data-label="Статус">{% if pr.is_active %}Активен{% else %}Архив{% endif %}</td>
         <td data-label="Переименовать">
           <form method="post" action="/picker/rename" class="row">
-            <input type="hidden" name="old_name" value="{{ p }}">
-            <input type="text" name="new_name" value="{{ p }}" required>
+            <input type="hidden" name="old_name" value="{{ pr.name }}">
+            <input type="text" name="new_name" value="{{ pr.name }}" required>
             <button type="submit" class="secondary">Сохранить</button>
           </form>
         </td>
-        <td data-label="Удалить">
-          <form method="post" action="/picker/delete" onsubmit="return confirm('Удалить сборщика {{ p }}?');">
-            <input type="hidden" name="name" value="{{ p }}">
-            <button type="submit" class="ghost">Удалить</button>
+        <td data-label="Действие">
+          {% if pr.is_active %}
+          <form method="post" action="/picker/delete" onsubmit="return confirm('Отправить в архив {{ pr.name }}?');">
+            <input type="hidden" name="name" value="{{ pr.name }}">
+            <button type="submit" class="ghost">В архив</button>
           </form>
+          {% else %}
+          <form method="post" action="/picker/restore">
+            <input type="hidden" name="name" value="{{ pr.name }}">
+            <button type="submit" class="secondary">Восстановить</button>
+          </form>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
