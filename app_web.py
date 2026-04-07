@@ -190,6 +190,36 @@ def set_shift_pickers(shift_date: str, pickers: list[str]) -> None:
     conn.close()
 
 
+def rename_picker(old_name: str, new_name: str) -> None:
+    old_name = old_name.strip()
+    new_name = new_name.strip()
+    if not old_name or not new_name or old_name == new_name:
+        return
+    conn = db()
+    cur = conn.cursor()
+    run_sql(cur, "SELECT COUNT(*) AS cnt FROM pickers WHERE name = ?", (new_name,))
+    if int(cur.fetchone()["cnt"]) > 0:
+        conn.close()
+        return
+    run_sql(cur, "UPDATE pickers SET name = ? WHERE name = ?", (new_name, old_name))
+    run_sql(cur, "UPDATE work_logs SET picker = ? WHERE picker = ?", (new_name, old_name))
+    run_sql(cur, "UPDATE shift_attendance SET picker = ? WHERE picker = ?", (new_name, old_name))
+    conn.commit()
+    conn.close()
+
+
+def delete_picker(name: str) -> None:
+    name = name.strip()
+    if not name:
+        return
+    conn = db()
+    cur = conn.cursor()
+    run_sql(cur, "DELETE FROM pickers WHERE name = ?", (name,))
+    run_sql(cur, "DELETE FROM shift_attendance WHERE picker = ?", (name,))
+    conn.commit()
+    conn.close()
+
+
 def register_font() -> str:
     for p in [Path("C:/Windows/Fonts/arial.ttf"), Path("C:/Windows/Fonts/tahoma.ttf")]:
         if p.exists():
@@ -308,6 +338,18 @@ def add_picker(name: str = Form(...)) -> RedirectResponse:
 @app.post("/set-shift")
 def set_shift(shift_date: str = Form(...), pickers: list[str] = Form(default=[])) -> RedirectResponse:
     set_shift_pickers(shift_date, pickers)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/picker/rename")
+def picker_rename(old_name: str = Form(...), new_name: str = Form(...)) -> RedirectResponse:
+    rename_picker(old_name, new_name)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/picker/delete")
+def picker_delete(name: str = Form(...)) -> RedirectResponse:
+    delete_picker(name)
     return RedirectResponse("/", status_code=303)
 
 

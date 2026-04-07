@@ -69,5 +69,30 @@
     <input type="text" name="name" placeholder="Новый сборщик" required>
     <button type="submit">Добавить</button>
   </form>
+  <div class="table-wrap" style="margin-top:10px;">
+    <table>
+      <thead><tr><th>Сборщик</th><th>Переименовать</th><th>Удалить</th></tr></thead>
+      <tbody>
+      {% for p in pickers %}
+      <tr>
+        <td data-label="Сборщик">{{ p }}</td>
+        <td data-label="Переименовать">
+          <form method="post" action="/picker/rename" class="row">
+            <input type="hidden" name="old_name" value="{{ p }}">
+            <input type="text" name="new_name" value="{{ p }}" required>
+            <button type="submit" class="secondary">Сохранить</button>
+          </form>
+        </td>
+        <td data-label="Удалить">
+          <form method="post" action="/picker/delete" onsubmit="return confirm('Удалить сборщика {{ p }}?');">
+            <input type="hidden" name="name" value="{{ p }}">
+            <button type="submit" class="ghost">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 {% endblock %}
