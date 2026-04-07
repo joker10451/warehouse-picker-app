@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from datetime import date, datetime
 from pathlib import Path
 
@@ -14,12 +15,16 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+import psycopg
+from psycopg.rows import dict_row
 
 APP_DIR = Path(__file__).parent
 DATA_DIR = APP_DIR / "data"
 EXPORTS_DIR = APP_DIR / "exports"
 PRINTS_DIR = APP_DIR / "prints"
 DB_PATH = DATA_DIR / "warehouse.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+USE_POSTGRES = DATABASE_URL.startswith("postgres")
 
 WAREHOUSES = ["Инбев", "Балтика", "Кола", "3PL Инбев", "3PL Балтика"]
 
@@ -35,61 +40,108 @@ def ensure_dirs() -> None:
 
 
 def db() -> sqlite3.Connection:
+    if USE_POSTGRES:
+        return psycopg.connect(DATABASE_URL, row_factory=dict_row)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def run_sql(cur, sql: str, params: tuple | list = ()) -> None:
+    if USE_POSTGRES:
+        cur.execute(sql.replace("?", "%s"), params)
+    else:
+        cur.execute(sql, params)
 
 
 def init_db() -> None:
     ensure_dirs()
     conn = db()
     cur = conn.cursor()
-    cur.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS work_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            work_date TEXT NOT NULL,
-            work_time TEXT NOT NULL DEFAULT '20:00',
-            picker TEXT NOT NULL,
-            warehouse TEXT NOT NULL DEFAULT 'Инбев',
-            truck_number TEXT NOT NULL DEFAULT '',
-            order_number TEXT NOT NULL,
-            work_type TEXT NOT NULL,
-            quantity_kg INTEGER NOT NULL CHECK(quantity_kg > 0),
-            comment TEXT DEFAULT '',
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS pickers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS shift_attendance (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            shift_date TEXT NOT NULL,
-            picker TEXT NOT NULL,
-            UNIQUE(shift_date, picker)
-        );
-        """
-    )
-    cur.execute("SELECT COUNT(*) AS cnt FROM pickers")
+    if USE_POSTGRES:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS work_logs (
+                id BIGSERIAL PRIMARY KEY,
+                work_date TEXT NOT NULL,
+                work_time TEXT NOT NULL DEFAULT '20:00',
+                picker TEXT NOT NULL,
+                warehouse TEXT NOT NULL DEFAULT 'Инбев',
+                truck_number TEXT NOT NULL DEFAULT '',
+                order_number TEXT NOT NULL DEFAULT '',
+                work_type TEXT NOT NULL,
+                quantity_kg INTEGER NOT NULL CHECK(quantity_kg > 0),
+                comment TEXT DEFAULT '',
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pickers (
+                id BIGSERIAL PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL
+            );
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS shift_attendance (
+                id BIGSERIAL PRIMARY KEY,
+                shift_date TEXT NOT NULL,
+                picker TEXT NOT NULL,
+                UNIQUE(shift_date, picker)
+            );
+            """
+        )
+    else:
+        cur.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS work_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_date TEXT NOT NULL,
+                work_time TEXT NOT NULL DEFAULT '20:00',
+                picker TEXT NOT NULL,
+                warehouse TEXT NOT NULL DEFAULT 'Инбев',
+                truck_number TEXT NOT NULL DEFAULT '',
+                order_number TEXT NOT NULL,
+                work_type TEXT NOT NULL,
+                quantity_kg INTEGER NOT NULL CHECK(quantity_kg > 0),
+                comment TEXT DEFAULT '',
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS pickers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS shift_attendance (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                shift_date TEXT NOT NULL,
+                picker TEXT NOT NULL,
+                UNIQUE(shift_date, picker)
+            );
+            """
+        )
+    run_sql(cur, "SELECT COUNT(*) AS cnt FROM pickers")
     if cur.fetchone()["cnt"] == 0:
         for name in ["Иванов", "Петров", "Сидоров", "Смирнов", "Кузнецов"]:
-            cur.execute("INSERT INTO pickers(name) VALUES(?)", (name,))
+            run_sql(cur, "INSERT INTO pickers(name) VALUES(?)", (name,))
 
-    # Migrations from older schema.
-    cur.execute("PRAGMA table_info(work_logs)")
-    columns = {r["name"] for r in cur.fetchall()}
-    if "work_time" not in columns:
-        cur.execute("ALTER TABLE work_logs ADD COLUMN work_time TEXT NOT NULL DEFAULT '20:00'")
-    if "warehouse" not in columns:
-        cur.execute("ALTER TABLE work_logs ADD COLUMN warehouse TEXT NOT NULL DEFAULT 'Инбев'")
-    if "truck_number" not in columns:
-        cur.execute("ALTER TABLE work_logs ADD COLUMN truck_number TEXT NOT NULL DEFAULT ''")
-    if "quantity_kg" not in columns and "quantity" in columns:
-        cur.execute("ALTER TABLE work_logs ADD COLUMN quantity_kg INTEGER NOT NULL DEFAULT 1")
-        cur.execute("UPDATE work_logs SET quantity_kg = COALESCE(quantity, 1)")
-    elif "quantity_kg" not in columns:
-        cur.execute("ALTER TABLE work_logs ADD COLUMN quantity_kg INTEGER NOT NULL DEFAULT 1")
+    if not USE_POSTGRES:
+        # Migrations from older sqlite schema.
+        run_sql(cur, "PRAGMA table_info(work_logs)")
+        columns = {r["name"] for r in cur.fetchall()}
+        if "work_time" not in columns:
+            run_sql(cur, "ALTER TABLE work_logs ADD COLUMN work_time TEXT NOT NULL DEFAULT '20:00'")
+        if "warehouse" not in columns:
+            run_sql(cur, "ALTER TABLE work_logs ADD COLUMN warehouse TEXT NOT NULL DEFAULT 'Инбев'")
+        if "truck_number" not in columns:
+            run_sql(cur, "ALTER TABLE work_logs ADD COLUMN truck_number TEXT NOT NULL DEFAULT ''")
+        if "quantity_kg" not in columns and "quantity" in columns:
+            run_sql(cur, "ALTER TABLE work_logs ADD COLUMN quantity_kg INTEGER NOT NULL DEFAULT 1")
+            run_sql(cur, "UPDATE work_logs SET quantity_kg = COALESCE(quantity, 1)")
+        elif "quantity_kg" not in columns:
+            run_sql(cur, "ALTER TABLE work_logs ADD COLUMN quantity_kg INTEGER NOT NULL DEFAULT 1")
 
     conn.commit()
     conn.close()
@@ -98,7 +150,7 @@ def init_db() -> None:
 def get_pickers() -> list[str]:
     conn = db()
     cur = conn.cursor()
-    cur.execute("SELECT name FROM pickers ORDER BY name")
+    run_sql(cur, "SELECT name FROM pickers ORDER BY name")
     rows = [r["name"] for r in cur.fetchall()]
     conn.close()
     return rows
@@ -107,7 +159,7 @@ def get_pickers() -> list[str]:
 def get_work_types() -> list[str]:
     conn = db()
     cur = conn.cursor()
-    cur.execute("SELECT DISTINCT work_type FROM work_logs WHERE TRIM(work_type) <> '' ORDER BY work_type")
+    run_sql(cur, "SELECT DISTINCT work_type FROM work_logs WHERE TRIM(work_type) <> '' ORDER BY work_type")
     rows = [r["work_type"] for r in cur.fetchall()]
     conn.close()
     return rows
@@ -116,7 +168,7 @@ def get_work_types() -> list[str]:
 def get_shift_pickers(shift_date: str) -> list[str]:
     conn = db()
     cur = conn.cursor()
-    cur.execute("SELECT picker FROM shift_attendance WHERE shift_date = ? ORDER BY picker", (shift_date,))
+    run_sql(cur, "SELECT picker FROM shift_attendance WHERE shift_date = ? ORDER BY picker", (shift_date,))
     rows = [r["picker"] for r in cur.fetchall()]
     conn.close()
     return rows
@@ -125,9 +177,15 @@ def get_shift_pickers(shift_date: str) -> list[str]:
 def set_shift_pickers(shift_date: str, pickers: list[str]) -> None:
     conn = db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM shift_attendance WHERE shift_date = ?", (shift_date,))
+    run_sql(cur, "DELETE FROM shift_attendance WHERE shift_date = ?", (shift_date,))
     for picker in sorted({p.strip() for p in pickers if p.strip()}):
-        cur.execute("INSERT OR IGNORE INTO shift_attendance(shift_date, picker) VALUES(?, ?)", (shift_date, picker))
+        if USE_POSTGRES:
+            cur.execute(
+                "INSERT INTO shift_attendance(shift_date, picker) VALUES(%s, %s) ON CONFLICT (shift_date, picker) DO NOTHING",
+                (shift_date, picker),
+            )
+        else:
+            run_sql(cur, "INSERT OR IGNORE INTO shift_attendance(shift_date, picker) VALUES(?, ?)", (shift_date, picker))
     conn.commit()
     conn.close()
 
@@ -167,7 +225,7 @@ def query_logs(
         args.append(f"%{truck_number}%")
     sql += " ORDER BY work_date DESC, work_time DESC, id DESC LIMIT 5000"
     cur = conn.cursor()
-    cur.execute(sql, args)
+    run_sql(cur, sql, tuple(args))
     rows = cur.fetchall()
     conn.close()
     return rows
@@ -237,7 +295,11 @@ def home(request: Request) -> HTMLResponse:
 @app.post("/add-picker")
 def add_picker(name: str = Form(...)) -> RedirectResponse:
     conn = db()
-    conn.execute("INSERT OR IGNORE INTO pickers(name) VALUES(?)", (name.strip(),))
+    cur = conn.cursor()
+    if USE_POSTGRES:
+        cur.execute("INSERT INTO pickers(name) VALUES(%s) ON CONFLICT (name) DO NOTHING", (name.strip(),))
+    else:
+        run_sql(cur, "INSERT OR IGNORE INTO pickers(name) VALUES(?)", (name.strip(),))
     conn.commit()
     conn.close()
     return RedirectResponse("/", status_code=303)
@@ -261,7 +323,9 @@ def add_log(
     comment: str = Form(""),
 ) -> RedirectResponse:
     conn = db()
-    conn.execute(
+    cur = conn.cursor()
+    run_sql(
+        cur,
         """
         INSERT INTO work_logs(work_date, work_time, picker, warehouse, truck_number, order_number, work_type, quantity_kg, comment, created_at)
         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -315,7 +379,8 @@ def journal(
 def stats_for(day: str, date_from: str, date_to: str) -> dict:
     conn = db()
     cur = conn.cursor()
-    cur.execute(
+    run_sql(
+        cur,
         """
         SELECT picker, COUNT(DISTINCT truck_number) AS trucks_count, COALESCE(SUM(quantity_kg), 0) AS total_qty
         FROM work_logs WHERE work_date = ? GROUP BY picker ORDER BY picker
@@ -323,7 +388,8 @@ def stats_for(day: str, date_from: str, date_to: str) -> dict:
         (day,),
     )
     day_rows = cur.fetchall()
-    cur.execute(
+    run_sql(
+        cur,
         """
         SELECT picker, COUNT(DISTINCT truck_number) AS trucks_count, COALESCE(SUM(quantity_kg), 0) AS total_qty
         FROM work_logs WHERE work_date BETWEEN ? AND ? GROUP BY picker ORDER BY picker
@@ -331,9 +397,10 @@ def stats_for(day: str, date_from: str, date_to: str) -> dict:
         (date_from, date_to),
     )
     period_rows = cur.fetchall()
-    cur.execute("SELECT COALESCE(SUM(quantity_kg), 0) AS total FROM work_logs WHERE work_date BETWEEN ? AND ?", (date_from, date_to))
+    run_sql(cur, "SELECT COALESCE(SUM(quantity_kg), 0) AS total FROM work_logs WHERE work_date BETWEEN ? AND ?", (date_from, date_to))
     total = int(cur.fetchone()["total"])
-    cur.execute(
+    run_sql(
+        cur,
         """
         SELECT work_type, COALESCE(SUM(quantity_kg), 0) AS total_qty
         FROM work_logs WHERE work_date BETWEEN ? AND ? GROUP BY work_type ORDER BY work_type
@@ -341,7 +408,8 @@ def stats_for(day: str, date_from: str, date_to: str) -> dict:
         (date_from, date_to),
     )
     types_rows = cur.fetchall()
-    cur.execute(
+    run_sql(
+        cur,
         """
         SELECT picker, GROUP_CONCAT(DISTINCT truck_number) AS trucks, GROUP_CONCAT(DISTINCT work_type) AS actions
         FROM work_logs WHERE work_date = ?
@@ -363,7 +431,8 @@ def stats_for(day: str, date_from: str, date_to: str) -> dict:
 def live_dashboard(day: str) -> dict:
     conn = db()
     cur = conn.cursor()
-    cur.execute(
+    run_sql(
+        cur,
         """
         WITH latest_per_truck AS (
             SELECT
