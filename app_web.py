@@ -450,15 +450,21 @@ def stats_for(day: str, date_from: str, date_to: str) -> dict:
         (date_from, date_to),
     )
     types_rows = cur.fetchall()
-    run_sql(
-        cur,
-        """
+    details_sql = """
         SELECT picker, GROUP_CONCAT(DISTINCT truck_number) AS trucks, GROUP_CONCAT(DISTINCT work_type) AS actions
         FROM work_logs WHERE work_date = ?
         GROUP BY picker ORDER BY picker
-        """,
-        (day,),
-    )
+    """
+    if USE_POSTGRES:
+        details_sql = """
+            SELECT
+                picker,
+                STRING_AGG(DISTINCT truck_number, ', ') AS trucks,
+                STRING_AGG(DISTINCT work_type, ', ') AS actions
+            FROM work_logs WHERE work_date = ?
+            GROUP BY picker ORDER BY picker
+        """
+    run_sql(cur, details_sql, (day,))
     picker_details = cur.fetchall()
     conn.close()
     return {
