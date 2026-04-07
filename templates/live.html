@@ -14,6 +14,10 @@
 
 <section class="kpis">
   <div class="kpi">
+    <div class="kpi-label">На смене</div>
+    <div class="kpi-value">{{ on_shift_count }}</div>
+  </div>
+  <div class="kpi">
     <div class="kpi-label">Машин в работе</div>
     <div class="kpi-value">{{ busy_count }}</div>
   </div>
@@ -24,6 +28,15 @@
   <div class="kpi">
     <div class="kpi-label">Свободных сборщиков</div>
     <div class="kpi-value">{{ free_count }}</div>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Состав смены</h3>
+  <div class="row">
+    {% for p in on_shift_pickers %}
+      <span class="btn ghost">{{ p }}</span>
+    {% endfor %}
   </div>
 </section>
 

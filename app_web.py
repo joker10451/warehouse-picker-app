@@ -63,6 +63,12 @@ def init_db() -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS shift_attendance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shift_date TEXT NOT NULL,
+            picker TEXT NOT NULL,
+            UNIQUE(shift_date, picker)
+        );
         """
     )
     cur.execute("SELECT COUNT(*) AS cnt FROM pickers")
@@ -105,6 +111,25 @@ def get_work_types() -> list[str]:
     rows = [r["work_type"] for r in cur.fetchall()]
     conn.close()
     return rows
+
+
+def get_shift_pickers(shift_date: str) -> list[str]:
+    conn = db()
+    cur = conn.cursor()
+    cur.execute("SELECT picker FROM shift_attendance WHERE shift_date = ? ORDER BY picker", (shift_date,))
+    rows = [r["picker"] for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def set_shift_pickers(shift_date: str, pickers: list[str]) -> None:
+    conn = db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM shift_attendance WHERE shift_date = ?", (shift_date,))
+    for picker in sorted({p.strip() for p in pickers if p.strip()}):
+        cur.execute("INSERT OR IGNORE INTO shift_attendance(shift_date, picker) VALUES(?, ?)", (shift_date, picker))
+    conn.commit()
+    conn.close()
 
 
 def register_font() -> str:
@@ -197,12 +222,14 @@ def startup() -> None:
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request) -> HTMLResponse:
+    today = date.today().isoformat()
     context = {
         "request": request,
-        "today": date.today().isoformat(),
+        "today": today,
         "now_time": datetime.now().strftime("%H:%M"),
         "pickers": get_pickers(),
         "warehouses": WAREHOUSES,
+        "shift_pickers_today": get_shift_pickers(today),
     }
     return templates.TemplateResponse(request=request, name="index.html", context=context)
 
@@ -213,6 +240,12 @@ def add_picker(name: str = Form(...)) -> RedirectResponse:
     conn.execute("INSERT OR IGNORE INTO pickers(name) VALUES(?)", (name.strip(),))
     conn.commit()
     conn.close()
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/set-shift")
+def set_shift(shift_date: str = Form(...), pickers: list[str] = Form(default=[])) -> RedirectResponse:
+    set_shift_pickers(shift_date, pickers)
     return RedirectResponse("/", status_code=303)
 
 
@@ -357,8 +390,9 @@ def live_dashboard(day: str) -> dict:
     active = [r for r in latest_rows if "закры" not in (r["work_type"] or "").lower()]
     closed = [r for r in latest_rows if "закры" in (r["work_type"] or "").lower()]
     busy_pickers = {r["picker"] for r in active if (r["picker"] or "").strip()}
-    all_pickers = set(get_pickers())
-    free_pickers = sorted(all_pickers - busy_pickers)
+    on_shift = get_shift_pickers(day)
+    source = set(on_shift) if on_shift else set(get_pickers())
+    free_pickers = sorted(source - busy_pickers)
 
     conn.close()
     return {
@@ -368,6 +402,8 @@ def live_dashboard(day: str) -> dict:
         "busy_count": len(active),
         "closed_count": len(closed),
         "free_count": len(free_pickers),
+        "on_shift_count": len(source),
+        "on_shift_pickers": sorted(source),
     }
 
 

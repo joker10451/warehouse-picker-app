@@ -21,6 +21,24 @@
 </section>
 
 <section class="card">
+  <h3>Кто сегодня на смене</h3>
+  <form method="post" action="/set-shift" class="grid">
+    <input type="hidden" name="shift_date" value="{{ today }}">
+    <label class="full">Состав смены на {{ today }}</label>
+    <div class="row full">
+      {% for p in pickers %}
+      <label style="display:inline-flex;align-items:center;gap:8px;font-weight:600;">
+        <input type="checkbox" name="pickers" value="{{ p }}" {% if p in shift_pickers_today %}checked{% endif %}>
+        {{ p }}
+      </label>
+      {% endfor %}
+    </div>
+    <button type="submit">Сохранить состав смены</button>
+  </form>
+  <p class="muted">Свободные на дашборде «Сейчас» считаются из этого списка.</p>
+</section>
+
+<section class="card">
   <h3>Новая операция</h3>
   <form method="post" action="/add-log" class="grid">
     <label>Дата<input type="date" name="work_date" value="{{ today }}" required></label>
